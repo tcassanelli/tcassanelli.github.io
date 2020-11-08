@@ -1836,8 +1836,9 @@ input, select, textarea {
 /* List */
 
 	ul {
-		list-style: disc;
+		list-style: square;
 		padding-left: 1em;
+		list-style-position: inside;
 	}
 
 		ul li {
