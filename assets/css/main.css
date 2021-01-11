@@ -258,6 +258,13 @@ input, select, textarea {
 
 		}
 
+	.float-child {
+	    width: 50%;
+	    float: left;
+	    padding: 20px;
+	    /*border: 2px solid red;*/
+	}  
+
 /* Row */
 
 	.row {
