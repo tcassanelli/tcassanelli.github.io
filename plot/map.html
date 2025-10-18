@@ -1,0 +1,142 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    html,body{height:100%;margin:0}
+    #map{width:100%;height:100vh;box-sizing:border-box}
+    /* optional: make popups narrower on small screens */
+    .leaflet-popup-content-wrapper{max-width:220px}
+    /* map legend styles */
+    .map-legend{
+      background: rgba(255,255,255,0.95);
+      padding: 8px 10px;
+      border-radius: 6px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+      font-size: 13px;
+      line-height: 1.2;
+      color: #111;
+    }
+    .map-legend .legend-title{font-weight:700;margin-bottom:6px}
+    .map-legend .legend-item{display:flex;align-items:center;gap:8px;margin:4px 0}
+    .map-legend .legend-item svg{display:block}
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // sensible defaults
+    const DEFAULT_CENTER = [-33.4489, -70.6536];
+    const DEFAULT_ZOOM = 6;
+    const MIN_ZOOM = 2;
+    const MAX_ZOOM = 16;
+    const FIT_PADDING = [40, 40]; // px padding for fitBounds
+
+    const map = L.map('map', {
+      center: DEFAULT_CENTER,
+      zoom: DEFAULT_ZOOM,
+      minZoom: MIN_ZOOM,
+      maxZoom: MAX_ZOOM,
+      zoomControl: true,
+      attributionControl: false
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: MAX_ZOOM,
+      minZoom: MIN_ZOOM,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    const markers = [
+      {lat:43.6596, lng:-79.3977, text:'University of Toronto'},
+      {lat:-33.4466, lng:-70.6537, text:'Universidad de Chile'},
+      {lat:-33.4972, lng:-70.6136, text:'Pontifica Universidad Católica'},
+      {lat:45.4064, lng:11.8777, text:'Università di Padova'},
+      {lat:50.7323, lng:7.0707, text:'Max-Planck-Institut für Radioastronomie'},
+      {lat:-34.8708, lng:-58.2381, text:'Instituto Argentino de Radioastronomía'},
+      {lat:41.8407, lng:-88.2626, text:'Fermilab'},
+      {lat:45.5048, lng:-73.5772, text:'McGill University'},
+      {lat:42.3770, lng:-71.1167, text:'Harvard University'},
+      {lat:38.0346, lng:-78.5080, text:'National Radio Astronomy Observatory (NRAO)'},
+      {lat:-38.7359, lng:-72.5904, text:'Universidad de La Frontera'},
+      {lat:-29.9045, lng:-71.2489, text:'Universidad de La Serena'},
+    {lat:-23.0057, lng:-67.7550, text:'Atacama Pathfinder Experiment (APEX)', telescope:true},
+    {lat:38.4331, lng:-79.8398, text:'Green Bank CHIME/FRB Outrigger', telescope:true},
+    {lat:50.5248, lng:6.8836, text:'Effelsberg 100-m Telescope', telescope:true},
+    {lat:-30.2407, lng:-70.7366, text:'Gemini South', telescope:true},
+    {lat:-30.1690, lng:-70.8040, text:'Cerro Tololo Blanco Telescope', telescope:true},
+    {lat:49.3208, lng:-119.6231, text:'Canadian Hydrogen Intensity Mapping Experiment (CHIME)', telescope:true},
+    {lat:45.9583, lng:-78.0728, text:'Algonquin Radio Observatory 46-m Telescope', telescope:true},
+    {lat:-23.0236, lng:-67.7532, text:'Atacama Large Millimeter Array (ALMA)', telescope:true},
+    ];
+
+    // add markers and compute bounds
+    const group = L.featureGroup();
+
+    // create a red SVG pin icon (data URL) for telescope markers
+    const telescopeSvg = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 42" width="30" height="42">
+        <path d="M15 0C9 0 4 5.5 4 11.8c0 9.8 11 25.8 11 25.8s11-16 11-25.8C26 5.5 21 0 15 0z"
+              fill="#d62728" stroke="#8b0000" stroke-width="1"/>
+        <circle cx="15" cy="11.5" r="4.5" fill="#fff"/>
+      </svg>
+    `.trim();
+
+    const telescopeIcon = L.icon({
+      iconUrl: 'data:image/svg+xml;utf8,' + encodeURIComponent(telescopeSvg),
+      iconSize: [30, 42],
+      iconAnchor: [15, 42],
+      popupAnchor: [0, -38]
+    });
+
+    markers.forEach(m=>{
+      if (m.telescope) {
+        L.marker([m.lat, m.lng], { icon: telescopeIcon }).bindPopup(m.text).addTo(group);
+      } else {
+        L.marker([m.lat, m.lng]).bindPopup(m.text).addTo(group);
+      }
+    });
+    group.addTo(map);
+
+    if (markers.length) {
+      const bounds = group.getBounds();
+      // if all markers are nearly the same point, avoid over-zooming
+      if (bounds.isValid() && (bounds.getNorthEast().equals(bounds.getSouthWest()) === false)) {
+        map.fitBounds(bounds.pad(0.12), { padding: FIT_PADDING, maxZoom: 12 });
+      } else {
+        // single-location fallback: center on point and zoom in moderately
+        map.setView([markers[0].lat, markers[0].lng], Math.min(MAX_ZOOM, 14));
+      }
+    } else {
+      map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+    }
+
+    // Refit on resize so layout stays correct
+    window.addEventListener('resize', ()=> {
+      if (group.getBounds().isValid()) map.fitBounds(group.getBounds().pad(0.12), { padding: FIT_PADDING, maxZoom: 12 });
+    });
+
+    // Optional: show scale
+    L.control.scale({imperial:false}).addTo(map);
+
+    // add a small legend explaining icons
+    const legend = L.control({ position: 'topright' });
+    legend.onAdd = function () {
+      const div = L.DomUtil.create('div', 'map-legend');
+      div.innerHTML = `
+        <div class="legend-item"><svg width="14" height="14" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="6" fill="#d62728" stroke="#174f7a" stroke-width="1"/></svg> Telescopes</div>
+        <div class="legend-item"><svg width="14" height="14" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="6" fill="#1f77b4" stroke="#174f7a" stroke-width="1"/></svg> Institutions</div>
+      `;
+      // prevent clicks on the legend from propagating to the map
+      L.DomEvent.disableClickPropagation(div);
+      return div;
+    };
+    legend.addTo(map);
+  </script>
+</body>
+</html>
